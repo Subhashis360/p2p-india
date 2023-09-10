@@ -2,9 +2,29 @@
 error_reporting(0);
 include "connect.php";
 
+function isEmailBanned($conn, $email) {
+  $check_query = "SELECT COUNT(*) AS count FROM banned_users WHERE email = ?";
+  $stmt = $conn->prepare($check_query);
+  $stmt->bind_param("s", $email);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $row = $result->fetch_assoc();
+  return $row['count'] > 0;
+}
+
+
 if (isset($_COOKIE["user_email"]) && isset($_COOKIE["user_password"])) {
   $email = $_COOKIE["user_email"];
   $password = $_COOKIE["user_password"];
+    if (isEmailBanned($conn, $email)) {
+
+    setcookie("user_email", "", time() - 3600);
+    setcookie("user_password", "", time() - 3600);
+
+    echo '<script>alert("You have been banned from using our service because you have violated the rules.");</script>';
+    echo '<script>window.location.href = "register.php";</script>';
+    exit;
+}
 
   $loginQuery = "SELECT email, password, verified FROM users WHERE email = ?";
   $stmt = $conn->prepare($loginQuery);
@@ -24,23 +44,23 @@ if (isset($_COOKIE["user_email"]) && isset($_COOKIE["user_password"])) {
           } else {
               // User is not verified; remove cookies
               setcookie("user_email", "", time() - 3600, "/");
-              echo "<script>window.location.href = 'index.php';</script>";
+              echo "<script>window.location.href = 'register.php';</script>";
               setcookie("user_password", "", time() - 3600, "/");
           }
       } else {
           // Invalid password; remove cookies
           setcookie("user_email", "", time() - 3600, "/");
-          echo "<script>window.location.href = 'index.php';</script>";
+          echo "<script>window.location.href = 'register.php';</script>";
           setcookie("user_password", "", time() - 3600, "/");
       }
   }else {
     setcookie("user_email", "", time() - 3600, "/");
-    echo "<script>window.location.href = 'index.php';</script>";
+    echo "<script>window.location.href = 'register.php';</script>";
     setcookie("user_password", "", time() - 3600, "/");
   }
 } else {
   setcookie("user_email", "", time() - 3600, "/");
-  echo "<script>window.location.href = 'index.php';</script>";
+  echo "<script>window.location.href = 'register.php';</script>";
   setcookie("user_password", "", time() - 3600, "/");
 }
 
@@ -125,6 +145,83 @@ if (isset($_POST["submit"])){
     $stmt->bind_param("ssdsss", $order_id, $product, $amount, $payment_method, $payment_details, $txn_id);
     if ($stmt->execute()) {
         echo "<script>alert('Order placed successfully! It will arrive within 24 hours');</script>";
+        $from = "order@p2pindia.in";
+            $to = "$product";
+            $headers = "MIME-Version: 1.0" . "\r\n";
+            $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+            $subject = "Hurray!!Your New Order Placed Order id : $order_id";
+            $message = '<!DOCTYPE html>
+            <html lang="en">
+            
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>' . $subject . '</title>
+              <!-- Include Bootstrap CSS -->
+              <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+              <style>
+                /* Custom styles */
+                body {
+                  font-family: Arial, sans-serif;
+                  background-color: #f5f5f5;
+                  margin: 0;
+                  padding: 0;
+                }
+            
+                .container {
+                  background-color: #ffffff;
+                  border-radius: 10px;
+                  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                  padding: 30px;
+                  margin: 20px auto;
+                  max-width: 600px;
+                }
+            
+                .success-message {
+                  text-align: center;
+                  color: #28a745;
+                  font-size: 24px;
+                  margin-bottom: 20px;
+                }
+            
+                .cards-container {
+                  display: flex;
+                  justify-content: space-around;
+                }
+            
+                .card {
+                  background-color: #f8f9fa;
+                  border: none;
+                  border-radius: 10px;
+                  padding: 15px;
+                  margin: 10px;
+                  text-align: center;
+                  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+            
+                .card img {
+                  max-width: 100%;
+                  height: auto;
+                }
+              </style>
+            </head>
+            
+            <body>
+            <center>
+              <div class="container">
+                <div class="cards-container">
+                  <div class="card"> 
+                   <h1 class="success-message">Order Placed Successfully</h1>
+                    <h1>Your order id is : <b>' . $order_id . '</b></h1>
+                    <p>Your payment will be processed within 48 hours.</p>
+                    <p>Have a Good day</p>
+                  </div>
+                </div>
+              </div>
+            </center>
+            </body>
+            </html>';
+            mail($to,$subject,$message, $headers);
         echo "<meta http-equiv='refresh' content='0;url='>";
       } else {
         echo "<script>alert('Something Went Wrong');</script>";
@@ -145,7 +242,7 @@ if (isset($_POST["submit"])){
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/128/3039/3039418.png" type="image/x-icon">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4" crossorigin="anonymous"></script>
@@ -255,7 +352,7 @@ if (isset($_POST["submit"])){
         </form>
         <br>
               <center><b>NO KYC | NO TAX</b></center>
-              <center><b>100% SAFE & SECURE 🔒</b></center>
+              <center><b>100% SAFE & SECURE ðŸ”’</b></center>
             </div>
           </div>
             <br>
@@ -307,7 +404,7 @@ if (isset($_POST["submit"])){
             ?>
 <?php
 $success = "false";
-$last_orders_query = "SELECT * FROM orders LIMIT 7";
+$last_orders_query = "SELECT * FROM orders";
 $last_orders_result = $conn->query($last_orders_query);
 
 $orders = array();  // Create an array to store the orders
@@ -316,8 +413,10 @@ while ($row = $last_orders_result->fetch_assoc()) {
     $orders[] = $row;  // Store each order in the array
 }
 
+$orders = array_reverse($orders);
+
 // Loop through the array in reverse to display the orders
-for ($i = count($orders) - 1; $i >= 0; $i--) {
+for ($i = 0; $i < 7; $i++) {
     $row = $orders[$i];
 
     if ($success === "false" || ($success === "true" && $row['status'] === 'success')) {
@@ -363,22 +462,22 @@ for ($i = count($orders) - 1; $i >= 0; $i--) {
                       <tbody>
                           <tr>
                               <td class="text-center">$10 - $50</td>
-                              <td class="text-center">82 INR/USD</td>
+                              <td class="text-center">83 INR/USD</td>
                           </tr>
                           <tr>
-                              <td class="text-center">$50 - $100</td>
+                              <td class="text-center">$51 - $100</td>
                               <td class="text-center">85 INR/USD</td>
                           </tr>
                           <tr>
-                              <td class="text-center">$100 - $500</td>
+                              <td class="text-center">$101 - $500</td>
                               <td class="text-center">86 INR/USD</td>
                           </tr>
                           <tr>
-                              <td class="text-center">$500 - $1000</td>
+                              <td class="text-center">$501 - $1000</td>
                               <td class="text-center">86.5 INR/USD</td>
                           </tr>
                           <tr>
-                              <td class="text-center">$1000 - $10000</td>
+                              <td class="text-center">$1001 - $10000</td>
                               <td class="text-center">87 INR/USD</td>
                           </tr>
                       </tbody>
@@ -437,9 +536,10 @@ for ($i = count($orders) - 1; $i >= 0; $i--) {
 
           <div class="footer-link padding-top--24">
             <div class="listing padding-top--24 padding-bottom--24 flex-flex center-center">
-              <span><a href="#">©p2pindia</a></span>
-              <span><a href="#">Contact</a></span>
-              <span><a href="#">Privacy & terms</a></span>
+              <span><a href="#">Â©p2pindia</a></span>
+              <span><a href="https://telegram.dog/p2pindia1">Contact</a></span>
+              <span><a href="/privacy/privacy-disclosure.html">Privacy & terms</a></span>
+              <span><a href="/blogs/Tax-Free-P2P-India.html">Blogs</a></span>
             </div>
           </div>
         </div>
@@ -474,6 +574,17 @@ for ($i = count($orders) - 1; $i >= 0; $i--) {
                 }
             });
         });
+    </script>
+    <script type="text/javascript">
+    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    (function(){
+    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+    s1.async=true;
+    s1.src='https://embed.tawk.to/64eb4d21b2d3e13950ec5e8f/1h8riaj79';
+    s1.charset='UTF-8';
+    s1.setAttribute('crossorigin','*');
+    s0.parentNode.insertBefore(s1,s0);
+    })();
     </script>
   </div>
 </body>
